@@ -2,8 +2,9 @@ name: Update Library Index
 
 on:
   push:
-    paths:
-      - '**/info.json'
+    # 移除路径限制，确保任何提交都能触发（调试用）
+    # paths:
+    #   - '**/info.json'
 
 permissions:
   contents: write
