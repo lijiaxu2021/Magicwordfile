@@ -56,6 +56,37 @@ jobs:
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
+          
+          # Clean workspace and Pull latest changes before committing
+          git checkout .
+          git pull --rebase origin main
+          
+          # Regenerate index after pull to include latest changes
+          # (Actually we should generate after pull, but let's assume no conflict on index.json if we generate it fresh)
+          # Re-run generation script here or move generation after pull?
+          # Moving generation AFTER pull is safer to avoid conflicts if index.json existed.
+          
+          # Re-run generation logic (Inline for simplicity)
+          python3 <<EOF
+          import os
+          import json
+          index = []
+          base_url = "https://mag.upxuu.com/library/file" 
+          for item in os.listdir('.'):
+              if os.path.isdir(item) and not item.startswith('.'):
+                  info_path = os.path.join(item, 'info.json')
+                  if os.path.exists(info_path):
+                      try:
+                          with open(info_path, 'r', encoding='utf-8') as f:
+                              data = json.load(f)
+                              data['downloadUrl'] = f"{base_url}/{item}/library.json"
+                              index.append(data)
+                      except Exception: pass
+          index.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+          with open('index.json', 'w', encoding='utf-8') as f:
+              json.dump(index, f, indent=2, ensure_ascii=False)
+          EOF
+          
           git add index.json
           git commit -m "Update index.json [skip ci]" || echo "No changes to commit"
           git push
