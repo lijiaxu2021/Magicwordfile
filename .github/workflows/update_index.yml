@@ -70,6 +70,9 @@ jobs:
           python3 <<EOF
           import os
           import json
+          import math
+          import time
+
           index = []
           base_url = "https://mag.upxuu.com/library/file" 
           for item in os.listdir('.'):
@@ -82,11 +85,49 @@ jobs:
                               data['downloadUrl'] = f"{base_url}/{item}/library.json"
                               index.append(data)
                       except Exception: pass
+          
+          # 按时间戳倒序排列 (最新的在前)
           index.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
-          with open('index.json', 'w', encoding='utf-8') as f:
-              json.dump(index, f, indent=2, ensure_ascii=False)
+          
+          # 分页逻辑：每页 10 个
+          PAGE_SIZE = 10
+          total_items = len(index)
+          total_pages = math.ceil(total_items / PAGE_SIZE) if total_items > 0 else 0
+          
+          # 先清理旧的 index_*.json 和 index.json
+          for f in os.listdir('.'):
+              if f.startswith('index_') and f.endswith('.json'):
+                  os.remove(f)
+          if os.path.exists('index.json'):
+              os.remove('index.json')
+          
+          # 生成 index_X.json
+          for i in range(total_pages):
+              start = i * PAGE_SIZE
+              end = start + PAGE_SIZE
+              page_data = index[start:end]
+              filename = f"index_{i}.json"
+              with open(filename, 'w', encoding='utf-8') as f:
+                  json.dump(page_data, f, indent=2, ensure_ascii=False)
+              print(f"Generated {filename} with {len(page_data)} items")
+              
+          # 生成 num.json
+          meta_data = {
+              "totalPages": total_pages,
+              "totalItems": total_items,
+              "pageSize": PAGE_SIZE,
+              "lastUpdated": int(time.time() * 1000)
+          }
+          with open('num.json', 'w', encoding='utf-8') as f:
+              json.dump(meta_data, f, indent=2, ensure_ascii=False)
+
           EOF
           
-          git add index.json
-          git commit -m "Update index.json [skip ci]" || echo "No changes to commit"
+          # Add all index files and num.json
+          # Use git add . to stage all changes including new files
+          git add .
+          # Ensure deletions are staged
+          git add -u
+          
+          git commit -m "Update pagination indexes [skip ci]" || echo "No changes to commit"
           git push
