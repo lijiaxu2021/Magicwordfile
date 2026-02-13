@@ -74,6 +74,8 @@ jobs:
           import time
 
           index = []
+          all_tags = {}
+          
           base_url = "https://mag.upxuu.com/library/file" 
           for item in os.listdir('.'):
               if os.path.isdir(item) and not item.startswith('.'):
@@ -84,6 +86,13 @@ jobs:
                               data = json.load(f)
                               data['downloadUrl'] = f"{base_url}/{item}/library.json"
                               index.append(data)
+                              
+                              # Collect tags
+                              if 'tags' in data and isinstance(data['tags'], list):
+                                  for tag in data['tags']:
+                                      tag = tag.strip()
+                                      if tag:
+                                          all_tags[tag] = all_tags.get(tag, 0) + 1
                       except Exception: pass
           
           # 按时间戳倒序排列 (最新的在前)
@@ -121,6 +130,13 @@ jobs:
           with open('num.json', 'w', encoding='utf-8') as f:
               json.dump(meta_data, f, indent=2, ensure_ascii=False)
 
+          # 生成 tags.json
+          # Format: [{"name": "English", "count": 5}, ...] sorted by count desc
+          sorted_tags = sorted([{"name": k, "count": v} for k, v in all_tags.items()], key=lambda x: x['count'], reverse=True)
+          with open('tags.json', 'w', encoding='utf-8') as f:
+              json.dump(sorted_tags, f, indent=2, ensure_ascii=False)
+          print(f"Generated tags.json with {len(sorted_tags)} tags")
+
           EOF
           
           # Add all index files and num.json
@@ -129,5 +145,5 @@ jobs:
           # Ensure deletions are staged
           git add -u
           
-          git commit -m "Update pagination indexes [skip ci]" || echo "No changes to commit"
+          git commit -m "Update pagination indexes and tags [skip ci]" || echo "No changes to commit"
           git push
